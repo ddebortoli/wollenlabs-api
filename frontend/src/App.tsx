@@ -12,7 +12,6 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<BatchStatus | null>(null);
   const [results, setResults] = useState<UrlCheck[]>([]);
-  const [pollingCount, setPollingCount] = useState(0);
   const MAX_POLLS = 3;
   const POLL_INTERVAL = 1000;
 
@@ -20,24 +19,20 @@ function App() {
     try {
       setIsSubmitting(true);
       setError(null);
-      setPollingCount(0);
       const response = await checkUrls(urls);
       setBatchId(response.batch_id);
       setResults(response.urls);
 
+      let pollCount = 0;
       const pollInterval = setInterval(async () => {
         try {
-          setPollingCount(count => {
-            const newCount = count + 1;
-            if (newCount >= MAX_POLLS) {
-              clearInterval(pollInterval);
-              getBatchResults(response.batch_id)
-                .then(results => setResults(results))
-                .catch(() => setError("Failed to fetch all results"));
-              return newCount;
-            }
-            return newCount;
-          });
+          pollCount++;
+          if (pollCount >= MAX_POLLS) {
+            clearInterval(pollInterval);
+            const finalResults = await getBatchResults(response.batch_id);
+            setResults(finalResults);
+            return;
+          }
 
           const batchStatus = await getBatchStatus(response.batch_id);
           setStatus(batchStatus);
